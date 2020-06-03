@@ -103,6 +103,7 @@ export class WizardDialog<T> {
 				m(this._currentPage),
 			]
 		)
+
 		this.dialog = Dialog.largeDialog(headerBarAttrs, this)
 		                    .addShortcut({
 			                    key: Keys.ESC,

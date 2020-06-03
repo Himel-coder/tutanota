@@ -38,7 +38,6 @@ import type {TableLineAttrs} from "../gui/base/TableN"
 import {ColumnWidth, createRowActions} from "../gui/base/TableN"
 import {attachDropdown, createDropdown} from "../gui/base/DropdownN"
 import {ButtonType} from "../gui/base/ButtonN"
-import {showAddDomainDialog} from "./AddDomainDialog"
 import {DomainDnsStatus} from "./DomainDnsStatus"
 import {showDnsCheckDialog} from "./CheckDomainDnsStatusDialog"
 import type {DomainInfo} from "../api/entities/sys/DomainInfo"
@@ -49,6 +48,7 @@ import {generatedIdToTimestamp, timestampToGeneratedId} from "../api/common/util
 import {ExpandableTable} from "./ExpandableTable"
 import {showRejectedSendersInfoDialog} from "./RejectedSendersInfoDialog"
 import {createEmailSenderListElement} from "../api/entities/sys/EmailSenderListElement"
+import {showAddDomainWizard} from "./AddDomainWizard"
 
 assertMainOrNode()
 
@@ -145,7 +145,8 @@ export class GlobalSettingsViewer implements UpdatableSettingsViewer {
 						if (logins.getUserController().isFreeAccount()) {
 							showNotAvailableForFreeDialog(true)
 						} else {
-							this._customerInfo.getAsync().then(customerInfo => showAddDomainDialog(customerInfo, this._domainDnsStatus))
+							//this._customerInfo.getAsync().then(customerInfo => showAddDomainDialog(customerInfo, this._domainDnsStatus))
+							showAddDomainWizard()
 						}
 					},
 					icon: () => Icons.Add

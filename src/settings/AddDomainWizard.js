@@ -12,16 +12,19 @@ import {lang} from "../misc/LanguageViewModel"
 import {createDnsRecordTable} from "./AddDomainDialog"
 import {CustomDomainCheckResult, CustomDomainValidationResult, DnsRecordType} from "../api/common/TutanotaConstants"
 import {worker} from "../api/main/WorkerClient"
+import type {DnsRecord} from "../api/entities/sys/DnsRecord"
 import {createDnsRecord} from "../api/entities/sys/DnsRecord"
 import {showProgressDialog} from "../gui/base/ProgressDialog"
 import {load} from "../api/main/Entity"
 import {CustomerTypeRef} from "../api/entities/sys/Customer"
 import {neverNull} from "../api/common/utils/Utils"
 import {logins} from "../api/main/LoginController"
+import type {CustomerInfo} from "../api/entities/sys/CustomerInfo"
 import {CustomerInfoTypeRef} from "../api/entities/sys/CustomerInfo"
 import {EditAliasesFormN} from "./EditAliasesFormN"
 import * as AddUserDialog from "./AddUserDialog"
 import {DomainDnsStatus} from "./DomainDnsStatus"
+import type {CustomDomainCheckReturn} from "../api/entities/sys/CustomDomainCheckReturn"
 
 export type AddDomainData = {
 	domain: Stream<string>,
@@ -165,12 +168,16 @@ class AddEmailAddressesPage implements WizardPage<AddDomainData> {
 	}
 
 	view(vnode: Vnode<any>): Children {
+
+
 		return [
 			m(".mt-l", "The domain is assigned to your account and you are able to configure email addresses for this domain."),
 			m("p.mb", "Use either email aliases if you want to set a custom domain address for your current user or if you want to create email addresses for members of your organization or family please add additional users."),
+
 			m(EditAliasesFormN, {
 				userGroupInfo: logins.getUserController().userGroupInfo,
-				showHeader: false
+				showHeader: false,
+				hideExpander: true
 			}),
 			m(".flex-center.full-width.pt-l",
 				m("", {style: {width: "260px"}},
@@ -326,9 +333,10 @@ class EnterDomainPage implements WizardPage<AddDomainData> {
 
 	view(vnode: Vnode<any>): Children {
 		return [
-			m(".mt-l", "Add your custom email domain in just a few steps."),
-			m("p", "You need to make changes to your DNS configuration. Please open a new browser window and log in to the administration panel of your domain provider to apply changes when necessary. We will show you which DNS records are required in each step. "),
-			m("p", "Start the process by entering your domain and press next"),
+			m(".mt-l", "With Tutanota you can use your custom email domain in just a few steps."),
+			m("p", "Start the process by entering your main domain into the input field and press next."),
+			m("p", "You will need to make changes to your DNS configuration. Please open a new browser window and log in to the administration panel of your domain provider to apply changes when necessary. We will show you which DNS records are required in each step. "),
+
 			m(TextFieldN, {
 					label: () => "Custom email domain",
 					value: this._addDomainData.domain,

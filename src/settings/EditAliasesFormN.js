@@ -27,7 +27,8 @@ import type {MailAddressAlias} from "../api/entities/sys/MailAddressAlias"
 assertMainOrNode()
 
 export type EditAliasesFormAttrs = {
-	userGroupInfo: GroupInfo
+	userGroupInfo: GroupInfo,
+	hideExpander?: boolean
 }
 
 class _EditAliasesForm {
@@ -47,7 +48,6 @@ class _EditAliasesForm {
 
 	view(vnode: Vnode<LifecycleAttrs<EditAliasesFormAttrs>>) {
 		const a = vnode.attrs
-
 		const addAliasButtonAttrs: ButtonAttrs = {
 			label: "addEmailAlias_label",
 			click: () => this._showAddAliasDialog(a.userGroupInfo),
@@ -62,16 +62,27 @@ class _EditAliasesForm {
 			lines: this._getAliasLineAttrs(a.userGroupInfo),
 		}
 
-		return [
-			m(".flex-space-between.items-center.mt-l.mb-s", [
-				m(".h4", lang.get('mailAddressAliases_label')),
-				m(ExpanderButtonN, {label: "showEmailAliases_action", expanded: this._expanded})
-			]),
-			m(ExpanderPanelN, {expanded: this._expanded}, m(TableN, aliasesTableAttrs)),
-			m(".small", (this._nbrOfAliasesToCreate === 0) ?
-				lang.get("adminMaxNbrOfAliasesReached_msg")
-				: lang.get('mailAddressAliasesMaxNbr_label', {'{1}': this._nbrOfAliasesToCreate}))
-		]
+		if (a.hideExpander) {
+			return [
+				m(ExpanderPanelN, {expanded: this._expanded}, m(TableN, aliasesTableAttrs)),
+				m(".small", (this._nbrOfAliasesToCreate === 0) ?
+					lang.get("adminMaxNbrOfAliasesReached_msg")
+					: lang.get('mailAddressAliasesMaxNbr_label', {'{1}': this._nbrOfAliasesToCreate}))
+			]
+		} else {
+			return [
+				m(".flex-space-between.items-center.mt-l.mb-s", [
+					m(".h4", lang.get('mailAddressAliases_label')),
+					m(ExpanderButtonN, {label: "showEmailAliases_action", expanded: this._expanded})
+				]),
+				m(ExpanderPanelN, {expanded: this._expanded}, m(TableN, aliasesTableAttrs)),
+				m(".small", (this._nbrOfAliasesToCreate === 0) ?
+					lang.get("adminMaxNbrOfAliasesReached_msg")
+					: lang.get('mailAddressAliasesMaxNbr_label', {'{1}': this._nbrOfAliasesToCreate}))
+			]
+		}
+
+
 	}
 
 	_getAliasLineAttrs(groupInfo: GroupInfo): Array<TableLineAttrs> {
