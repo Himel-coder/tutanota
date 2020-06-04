@@ -64,7 +64,7 @@ class _EditAliasesForm {
 
 		if (a.hideExpander) {
 			return [
-				m(ExpanderPanelN, {expanded: this._expanded}, m(TableN, aliasesTableAttrs)),
+				m(TableN, aliasesTableAttrs),
 				m(".small", (this._nbrOfAliasesToCreate === 0) ?
 					lang.get("adminMaxNbrOfAliasesReached_msg")
 					: lang.get('mailAddressAliasesMaxNbr_label', {'{1}': this._nbrOfAliasesToCreate}))

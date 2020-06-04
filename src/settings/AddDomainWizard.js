@@ -76,7 +76,7 @@ class VerifyMailDelivery implements WizardPage<AddDomainData> {
 	view(vnode: Vnode<any>): Children {
 		return [
 			m(".mt-l", ""),
-			m("p.mb", "Use either email aliases if you want to set a custom domain address for your current user or if you want to create email addresses for members of your organization or family please add additional users."),
+			m("p.mb", "Finally you have to configure the DNS records listed below to enable mail delivery to and from the Tutanota mail server."),
 			this._domainStatus.status.isLoaded() ? m("", this._renderCheckResult(this._domainStatus.status.getLoaded())) : m("", "..loading"),
 			m(".flex-center.full-width.pt-l",
 				m("", {style: {width: "260px"}},
@@ -101,8 +101,6 @@ class VerifyMailDelivery implements WizardPage<AddDomainData> {
 		if (result.checkResult === CustomDomainCheckResult.CUSTOM_DOMAIN_CHECK_RESULT_OK) {
 			let array = []
 			if (result.missingRecords.length > 0 || result.invalidRecords.length > 0) {
-				array.push(m(".i.mt-m.mb-s", lang.get("skipDnsRecordsInfo_msg")))
-
 				if (result.missingRecords.filter(r => r.type !== DnsRecordType.DNS_RECORD_TYPE_TXT_DMARC).length > 0) {
 					array.push(m(".mt-m.mb-s", lang.get("setDnsRecords_msg")))
 					array.push(createDnsRecordTable(result.missingRecords.filter(r => r.type !== DnsRecordType.DNS_RECORD_TYPE_TXT_DMARC)))
@@ -134,7 +132,7 @@ class VerifyMailDelivery implements WizardPage<AddDomainData> {
 
 
 	headerTitle() {
-		return "Verify DNS records"
+		return lang.get("checkDnsRecords_action")
 	};
 
 	nextAction(): Promise<AddDomainData> {
