@@ -150,7 +150,7 @@ pipeline {
 				withCredentials([string(credentialsId: 'HSM_USER_PIN', variable: 'PW')]){
 					sh '''
 					export HSM_USER_PIN=${PW};
-					node dist -edp release '''
+					node dist -edp --get-dicts release '''
 				}
             }
         }

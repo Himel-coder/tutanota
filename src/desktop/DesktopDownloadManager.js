@@ -10,6 +10,7 @@ import {lang} from "../misc/LanguageViewModel"
 import type {DesktopNetworkClient} from "./DesktopNetworkClient"
 import {FileOpenError} from "../api/common/error/FileOpenError"
 import {EventEmitter} from 'events'
+import url from 'url'
 
 export class DesktopDownloadManager {
 	_conf: DesktopConfigHandler;
@@ -22,7 +23,19 @@ export class DesktopDownloadManager {
 		this._fileManagersOpen = 0
 	}
 
-	manageDownloadsForSession(session: ElectronSession) {
+	manageDownloadsForSession(session: ElectronSession, dictUrl: string) {
+		dictUrl = url.resolve(dictUrl, '../Dictionaries/')
+		console.log('getting dictionaries from:', dictUrl)
+		// https://www.electronjs.org/docs/api/session#sessetspellcheckerdictionarydownloadurlurl
+		// the dictionary download url is pointed to the dictionary cache directory for custom builds,
+		// effectively disabling the download. to get spellcheck in those cases, get the dictionaries from
+		// electrons' github releases page (https://github.com/electron/electron/releases/) with the dist.js
+		// script and place them into the cache directory:
+		//
+		// ~/.config/tutanota-desktop/Dictionaries/ on linux
+		// %APPDATA%\tutanota-desktop\Dictionaries on windows
+		// ~/Library/Application Support/tutanota-desktop/Dictionaries/ on mac
+		session.setSpellCheckerDictionaryDownloadURL(dictUrl)
 		session.removeAllListeners('will-download').on('will-download', (ev, item) => this._handleDownloadItem(ev, item))
 	}
 

@@ -3,7 +3,7 @@ const options = require('commander')
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require("fs-extra"))
 const Builder = require('systemjs-builder')
-let version = require('./package.json').version
+let {version, devDependencies} = require('./package.json')
 const env = require('./buildSrc/env.js')
 const LaunchHtml = require('./buildSrc/LaunchHtml.js')
 const spawnSync = require('child_process').spawnSync
@@ -47,10 +47,11 @@ options
 	.option('-w --win', 'Build desktop client for windows')
 	.option('-l --linux', 'Build desktop client for linux')
 	.option('-m --mac', 'Build desktop client for mac')
-	.option('-d, --deb', 'Build .deb package. Requires -wlm to be set or installers to be present')
+	.option('-d, --deb', 'Build .deb package. Requires -wlm to be set or desktop installers to be present')
 	.option('-p, --publish', 'Git tag and upload package, only allowed in release stage. Implies -d.')
 	.option('--custom-desktop-release', "use if manually building desktop client from source. doesn't install auto updates, but may still notify about new releases.")
 	.option('--unpacked', "don't pack the app into an installer")
+	.option('--get-dicts', "download the current spellcheck dictionaries from github to the build dir")
 	.option('--out-dir <outDir>', "where to copy the client",)
 	.action((stage, host) => {
 		if (!["test", "prod", "local", "host", "release", undefined].includes(stage)
@@ -85,6 +86,7 @@ Promise.resolve()
        .then(buildWebapp)
        .then(buildDesktopClient)
        .then(signDesktopClients)
+       .then(getDictionaries)
        .then(packageDeb)
        .then(publish)
        .then(() => {
@@ -184,71 +186,103 @@ function buildWebapp() {
 }
 
 function buildDesktopClient() {
-	if (options.desktop) {
-		const desktopBuilder = require('./buildSrc/DesktopBuilder.js')
-		const desktopBaseOpts = {
-			dirname: __dirname,
-			version: version,
-			targets: options.desktop,
-			updateUrl: options.customDesktopRelease
-				? ""
-				: "https://mail.tutanota.com/desktop",
-			nameSuffix: "",
-			notarize: !options.customDesktopRelease,
-			outDir: options.outDir,
-			unpacked: options.unpacked
-		}
-		if (options.stage === "release") {
-			const buildPromise = createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://mail.tutanota.com", version, "Desktop", true), bundles)
-				.then(() => desktopBuilder.build(desktopBaseOpts))
-			if (!options.customDesktopRelease) { // don't build the test version for manual/custom builds
-				const desktopTestOpts = Object.assign({}, desktopBaseOpts, {
-					updateUrl: "https://test.tutanota.com/desktop",
-					nameSuffix: "-test",
-					// Do not notarize test build
-					notarize: false
-				})
-				buildPromise.then(() => createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://test.tutanota.com", version, "Desktop", true), bundles))
-				            .then(() => desktopBuilder.build(desktopTestOpts))
-			}
-			return buildPromise
-		} else if (options.stage === "local") {
-			const desktopLocalOpts = Object.assign({}, desktopBaseOpts, {
-				version: `${new Date().getTime()}.0.0`,
-				updateUrl: "http://localhost:9000/desktop-snapshot",
-				nameSuffix: "-snapshot",
-				notarize: false
-			})
-			return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "http://localhost:9000", version, "Desktop", true), bundles)
-				.then(() => desktopBuilder.build(desktopLocalOpts))
-		} else if (options.stage === "test") {
+	if (!options.desktop) return Promise.resolve()
+	const desktopBuilder = require('./buildSrc/DesktopBuilder.js')
+	const desktopBaseOpts = {
+		dirname: __dirname,
+		version: version,
+		targets: options.desktop,
+		updateUrl: options.customDesktopRelease
+			? ""
+			: "https://mail.tutanota.com/desktop",
+		nameSuffix: "",
+		notarize: !options.customDesktopRelease,
+		outDir: options.outDir,
+		unpacked: options.unpacked
+	}
+	if (options.stage === "release") {
+		const buildPromise = createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://mail.tutanota.com", version, "Desktop", true), bundles)
+			.then(() => desktopBuilder.build(desktopBaseOpts))
+		if (!options.customDesktopRelease) { // don't build the test version for manual/custom builds
 			const desktopTestOpts = Object.assign({}, desktopBaseOpts, {
-				version: `${new Date().getTime()}.0.0`,
 				updateUrl: "https://test.tutanota.com/desktop",
 				nameSuffix: "-test",
+				// Do not notarize test build
 				notarize: false
 			})
-			return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://test.tutanota.com", version, "Desktop", true), bundles)
-				.then(() => desktopBuilder.build(desktopTestOpts))
-		} else if (options.stage === "prod") {
-			const desktopProdOpts = Object.assign({}, desktopBaseOpts, {
-				version: `${new Date().getTime()}.0.0`,
-				updateUrl: "http://localhost:9000/desktop",
-				notarize: false
-			})
-			return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://mail.tutanota.com", version, "Desktop", true), bundles)
-				.then(() => desktopBuilder.build(desktopProdOpts))
-		} else { // stage = host
-			const desktopHostOpts = Object.assign({}, desktopBaseOpts, {
-				version: `${new Date().getTime()}.0.0`,
-				updateUrl: "http://localhost:9000/desktop-snapshot",
-				nameSuffix: "-snapshot",
-				notarize: false
-			})
-			return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), options.host, version, "Desktop", true), bundles)
-				.then(() => desktopBuilder.build(desktopHostOpts))
+			buildPromise.then(() => createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://test.tutanota.com", version, "Desktop", true), bundles))
+			            .then(() => desktopBuilder.build(desktopTestOpts))
 		}
+		return buildPromise
+	} else if (options.stage === "local") {
+		const desktopLocalOpts = Object.assign({}, desktopBaseOpts, {
+			version: `${new Date().getTime()}.0.0`,
+			updateUrl: "http://localhost:9000/build/desktop-snapshot",
+			nameSuffix: "-snapshot",
+			notarize: false
+		})
+		return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "http://localhost:9000", version, "Desktop", true), bundles)
+			.then(() => desktopBuilder.build(desktopLocalOpts))
+	} else if (options.stage === "test") {
+		const desktopTestOpts = Object.assign({}, desktopBaseOpts, {
+			version: `${new Date().getTime()}.0.0`,
+			updateUrl: "https://test.tutanota.com/desktop",
+			nameSuffix: "-test",
+			notarize: false
+		})
+		return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://test.tutanota.com", version, "Desktop", true), bundles)
+			.then(() => desktopBuilder.build(desktopTestOpts))
+	} else if (options.stage === "prod") {
+		const desktopProdOpts = Object.assign({}, desktopBaseOpts, {
+			version: `${new Date().getTime()}.0.0`,
+			updateUrl: "http://localhost:9000/desktop",
+			notarize: false
+		})
+		return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), "https://mail.tutanota.com", version, "Desktop", true), bundles)
+			.then(() => desktopBuilder.build(desktopProdOpts))
+	} else { // stage = host
+		const desktopHostOpts = Object.assign({}, desktopBaseOpts, {
+			version: `${new Date().getTime()}.0.0`,
+			updateUrl: "http://localhost:9000/desktop-snapshot",
+			nameSuffix: "-snapshot",
+			notarize: false
+		})
+		return createHtml(env.create(SystemConfig.distRuntimeConfig(bundles), options.host, version, "Desktop", true), bundles)
+			.then(() => desktopBuilder.build(desktopHostOpts))
 	}
+}
+
+function getDictionaries() {
+	if (!options.getDicts) return Promise.resolve()
+	console.log('getting dicts')
+	const url = `https://github.com/electron/electron/releases/download/v${devDependencies.electron}/hunspell_dictionaries.zip`
+	const target = path.join((options.outDir || DistDir), '..', 'Dictionaries')
+	return Promise.all([
+		fetch(url).then(require('jszip').loadAsync),
+		fs.mkdirp(target).then(() => target)
+	]).then(([zip, target]) => {
+		return Promise.all(Object.keys(zip.files).map(name => zip
+				.file(name)
+				.async('nodebuffer')
+				.then(contents => fs.writeFile(path.join(target, name), contents))
+			)
+		)
+	})
+}
+
+function fetch(url) {
+	return new Promise((resolve, reject) => {
+		const data = []
+		require('https').get(url, response => {
+			if (response.statusCode === 302) {
+				fetch(response.headers.location).then(resolve).catch(reject)
+			} else if (response.statusCode === 200) {
+				response.on('data', c => data.push(c)).on('end', () => resolve(Buffer.concat(data)))
+			} else {
+				reject("Couldn't fetch: " + url + ", got " + response.statusCode)
+			}
+		}).on('error', err => reject(err.message))
+	})
 }
 
 const buildConfig = {

@@ -1,6 +1,6 @@
 // @flow
-import type {ElectronPermission, FindInPageResult, ContextMenuParams} from 'electron'
-import {BrowserWindow, Menu, shell, WebContents, app} from 'electron'
+import type {ContextMenuParams, ElectronPermission, FindInPageResult} from 'electron'
+import {app, BrowserWindow, Menu, shell, WebContents} from 'electron'
 import * as localShortcut from 'electron-localshortcut'
 import DesktopUtils from './DesktopUtils.js'
 import u2f from '../misc/u2f-api.js'
@@ -56,7 +56,14 @@ export class ApplicationWindow {
 
 		console.log("startFile: ", this._startFile)
 		const preloadPath = path.join(app.getAppPath(), conf.get("preloadjs"))
-		this._createBrowserWindow(wm, preloadPath)
+		const updateUrl = conf.get('updateUrl')
+		this._createBrowserWindow(wm, {
+			preloadPath,
+			spellcheck: conf.getDesktopConfig("spellcheck"),
+			dictUrl: updateUrl && updateUrl !== ""
+				? updateUrl
+				: DesktopUtils.pathToFileURL(path.join(app.getPath('userData'), 'Dictionaries/'))
+		})
 		this._browserWindow.loadURL(
 			noAutoLogin
 				? this._startFile + "?noAutoLogin=true"
@@ -106,7 +113,8 @@ export class ApplicationWindow {
 		}
 	}
 
-	_createBrowserWindow(wm: WindowManager, preloadPath: string) {
+	_createBrowserWindow(wm: WindowManager, opts: {preloadPath: string, spellcheck: ?boolean, dictUrl: string}) {
+		const {preloadPath, spellcheck, dictUrl} = opts
 		this._browserWindow = new BrowserWindow({
 			icon: wm.getIcon(),
 			show: false,
@@ -122,7 +130,8 @@ export class ApplicationWindow {
 				// the preload script changes to the web app
 				contextIsolation: false,
 				webSecurity: true,
-				preload: preloadPath
+				preload: preloadPath,
+				spellcheck,
 			}
 		})
 		this._browserWindow.setMenuBarVisibility(false)
@@ -132,7 +141,7 @@ export class ApplicationWindow {
 		this._ipc.addWindow(this.id)
 
 		this._browserWindow.webContents.session.setPermissionRequestHandler(this._permissionRequestHandler)
-		wm.dl.manageDownloadsForSession(this._browserWindow.webContents.session)
+		wm.dl.manageDownloadsForSession(this._browserWindow.webContents.session, dictUrl)
 
 		this._browserWindow
 		    .on('closed', () => {
@@ -151,7 +160,7 @@ export class ApplicationWindow {
 		    })
 		    .on('will-attach-webview', e => e.preventDefault())
 		    .on('did-start-navigation', (e, url, isInPlace) => {
-		    	this._browserWindow.emit('did-start-navigation')
+			    this._browserWindow.emit('did-start-navigation')
 			    const newURL = this._rewriteURL(url, isInPlace)
 			    if (newURL !== url) {
 				    e.preventDefault()
